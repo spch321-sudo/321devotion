@@ -548,7 +548,14 @@ function ymStart() {
       if (add && rounds++ < 20) { pl.cuePlaylist({ list: YM.pass ? YT_LIST_S : YT_LIST, listType: 'playlist', index: YM.ids.length }); setTimeout(grab, 2500); }
       else ymTitles();
     };
-    YM.again = function () { seen = {}; rounds = 0; pl.cuePlaylist({ list: YT_LIST_S, listType: 'playlist', index: 0 }); setTimeout(grab, 3500); };
+    YM.again = function () {
+      seen = {}; rounds = 0;
+      var old = document.getElementById('ymplayer'), par = old && old.parentNode, sty = old ? old.getAttribute('style') : '';
+      try { pl.destroy(); } catch (e) {}
+      var nd = document.createElement('div'); nd.id = 'ymplayer'; nd.setAttribute('style', sty || 'width:2px;height:2px;overflow:hidden');
+      (par || document.body).appendChild(nd);
+      pl = new YT.Player('ymplayer', { height: '2', width: '2', playerVars: { listType: 'playlist', list: YT_LIST_S }, events: { onReady: function () { setTimeout(grab, 3000); }, onError: function (e) { ymSt(T('ymErr') + ' (錯誤碼 ' + (e && e.data) + '，簡體清單)'); ymTitles(); } } });
+    };
     pl = new YT.Player('ymplayer', { height: '2', width: '2', playerVars: { listType: 'playlist', list: YT_LIST }, events: { onReady: function () { setTimeout(grab, 2500); }, onError: function (e) { ymSt(T('ymErr') + ' (錯誤碼 ' + (e && e.data) + '，' + (YM.pass ? '簡體' : '繁體') + '清單)'); YM.busy = false; } } });
   };
   if (window.YT && YT.Player) boot();
@@ -571,7 +578,7 @@ function ymTitles() {
       });
     })(YM.ids[i]);
   };
-  if (!N) { ymSt(T('ymErr')); YM.busy = false; return; } next();
+  if (!N) { if (YM.pass) { ymDone(); return; } ymSt(T('ymErr')); YM.busy = false; return; } next();
 }
 function getJSON2(u, cb) { var x = new XMLHttpRequest(); try { x.open('GET', u, true); } catch (e) { cb(null); return; } x.timeout = 15000; x.onload = function () { try { cb(JSON.parse(x.responseText)); } catch (e) { cb(null); } }; x.onerror = x.ontimeout = function () { cb(null); }; x.send(); }
 function ymDone() {
