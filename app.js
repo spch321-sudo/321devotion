@@ -517,7 +517,7 @@ function installApp() {
 }
 
 /* ---------- 每一集的 YouTube 影片 ---------- */
-var YT_LIST = 'PLid55ck_AyA128dNw_385uXINWgG7YRpr', YT_CH = 'https://www.youtube.com/@kingdom321air';
+var YT_LIST = 'PLid55ck_AyA128dNw_385uXINWgG7YRpr', YT_LIST_S = 'PLid55ck_AyA187UYA2rCCHyUHwxIkDUS5', YT_CH = 'https://www.youtube.com/@kingdom321air';
 var VID = {};
 function loadVids() { getJSON('data/videos.json', function (d) { if (d && typeof d === 'object') { VID = d; if (R.page.t === 'read' && !$('.vid')) { var a = $('.l-acts'); if (a && VID[R.page.n]) a.insertAdjacentHTML('beforebegin', vidHtml(R.page.n)); } } }); }
 function vidHtml(n) {
@@ -538,16 +538,17 @@ function vYtMap() {
 }
 function ymSt(t) { var e = $('#ymst'); if (e) e.textContent = t; }
 function ymStart() {
-  if (YM && YM.busy) return; YM = { busy: true, ids: [], map: {}, bad: [] }; ymSt(T('ymLoading'));
+  if (YM && YM.busy) return; YM = { busy: true, pass: 0, ids: [], map: {}, ms: {}, tc: {}, bad: [] }; ymSt(T('ymLoading'));
   var boot = function () {
     var seen = {}, rounds = 0, pl;
     var grab = function () {
       var a = pl.getPlaylist && pl.getPlaylist(); var add = 0;
-      if (a) for (var i = 0; i < a.length; i++) if (!seen[a[i]]) { seen[a[i]] = 1; YM.ids.push(a[i]); add++; }
+      if (a) for (var i = 0; i < a.length; i++) if (!seen[a[i]] && !(YM.pass && YM.tc[a[i]])) { seen[a[i]] = 1; YM.ids.push(a[i]); add++; }
       ymSt(T('ymGot', YM.ids.length));
-      if (add && rounds++ < 20) { pl.cuePlaylist({ list: YT_LIST, listType: 'playlist', index: YM.ids.length }); setTimeout(grab, 2500); }
+      if (add && rounds++ < 20) { pl.cuePlaylist({ list: YM.pass ? YT_LIST_S : YT_LIST, listType: 'playlist', index: YM.ids.length }); setTimeout(grab, 2500); }
       else ymTitles();
     };
+    YM.again = function () { seen = {}; rounds = 0; pl.cuePlaylist({ list: YT_LIST_S, listType: 'playlist', index: 0 }); setTimeout(grab, 3500); };
     pl = new YT.Player('ymplayer', { height: '2', width: '2', playerVars: { listType: 'playlist', list: YT_LIST }, events: { onReady: function () { setTimeout(grab, 2500); }, onError: function () { ymSt(T('ymErr')); YM.busy = false; } } });
   };
   if (window.YT && YT.Player) boot();
@@ -564,8 +565,8 @@ function ymTitles() {
       live++; i++;
       one(id, function (t) {
         live--; var m = /[靈灵]修[會会]主\s*[-－—–]?\s*0*(\d{1,4})/.exec(t || '');
-        if (m) { var n = +m[1]; if (!YM.map[n]) YM.map[n] = id; } else YM.bad.push(id + ' ' + (t || '?'));
-        ymSt(T('ymTitles', N - i + live, cntKeys(YM.map)));
+        if (m) { var n = +m[1], tg = YM.pass ? YM.ms : YM.map; if (!tg[n]) tg[n] = id; } else YM.bad.push(id + ' ' + (t || '?'));
+        ymSt(T('ymTitles', N - i + live, cntKeys(YM.map) + cntKeys(YM.ms)));
         if (i >= N && !live) ymDone(); else next();
       });
     })(YM.ids[i]);
@@ -574,10 +575,14 @@ function ymTitles() {
 }
 function getJSON2(u, cb) { var x = new XMLHttpRequest(); try { x.open('GET', u, true); } catch (e) { cb(null); return; } x.timeout = 15000; x.onload = function () { try { cb(JSON.parse(x.responseText)); } catch (e) { cb(null); } }; x.onerror = x.ontimeout = function () { cb(null); }; x.send(); }
 function ymDone() {
-  YM.busy = false; var have = cntKeys(YM.map), miss = []; eachA(IDX, function (it) { if (!YM.map[it[0]]) miss.push(it[0]); });
-  VID = YM.map; var js = JSON.stringify(YM.map);
+  if (!YM.pass && YM.again) { for (var k = 0; k < YM.ids.length; k++) YM.tc[YM.ids[k]] = 1; YM.pass = 1; YM.ids = []; ymSt(T('ymLoading')); YM.again(); return; }
+  YM.busy = false; var comb = {}, nn;
+  for (nn in YM.map) { comb[nn] = comb[nn] || {}; comb[nn].t = YM.map[nn]; }
+  for (nn in YM.ms) { comb[nn] = comb[nn] || {}; comb[nn].s = YM.ms[nn]; }
+  var have = cntKeys(comb), miss = []; eachA(IDX, function (it) { if (!comb[it[0]]) miss.push(it[0]); });
+  VID = comb; var js = JSON.stringify(comb);
   var b = $('#ymbox'); if (!b) return;
-  b.innerHTML = '<div class="card"><p class="eyebrow">' + esc(T('ymDone', YM.ids.length, have)) + '</p>' + (miss.length ? '<div class="xs muted">' + esc(T('ymMiss', miss.length)) + miss.slice(0, 80).join('、') + (miss.length > 80 ? '…' : '') + '</div>' : '') +
+  b.innerHTML = '<div class="card"><p class="eyebrow">' + esc(T('ymDone', cntKeys(YM.map) + cntKeys(YM.ms), have)) + '</p>' + (miss.length ? '<div class="xs muted">' + esc(T('ymMiss', miss.length)) + miss.slice(0, 80).join('、') + (miss.length > 80 ? '…' : '') + '</div>' : '') +
     '<p>' + esc(T('ymSend')) + '</p><textarea id="ymjson" class="mq-ta" style="min-height:120px" readonly>' + esc(js) + '</textarea><button class="btn pri block" data-act="ymcopy">' + esc(T('copy')) + '</button></div>';
   ymSt('');
 }
