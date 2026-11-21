@@ -1,5 +1,5 @@
 /* 321QT · 主程式（ES5，給 WPS／舊 WebView 也能跑） */
-var APPVER = '2026.1121.2255-qt5';
+var APPVER = '2026.1121.2305-qt6';
 var SVC = { xz: 'https://xiaozhi-proxy.spch321.workers.dev', tts: 'https://azure-tts.spch321.workers.dev', model: 'claude-sonnet-4-6' };
 var VOICES = { zh: ['zh-TW-YunJheNeural', 'zh-CN-Yunfan:DragonHDLatestNeural', 'zh-CN-Xiaochen:DragonHDLatestNeural'], en: ['en-US-AndrewNeural', 'en-US-AvaNeural', 'en-US-BrianNeural'], zs: ['zh-CN-Yunfan:DragonHDLatestNeural', 'zh-CN-Xiaochen:DragonHDLatestNeural', 'zh-TW-YunJheNeural'] };
 var EPOCH = [2026, 10, 2];
@@ -546,7 +546,24 @@ function ymStart() {
       if (a) for (var i = 0; i < a.length; i++) if (!seen[a[i]] && !(YM.pass && YM.tc[a[i]])) { seen[a[i]] = 1; YM.ids.push(a[i]); add++; }
       ymSt(T('ymGot', YM.ids.length));
       if (add && rounds++ < 20) { pl.cuePlaylist({ list: YM.pass ? YT_LIST_S : YT_LIST, listType: 'playlist', index: YM.ids.length }); setTimeout(grab, 2500); }
-      else ymTitles();
+      else deep();
+    };
+    /* 播放器的 getPlaylist 最多只回 200 支；超過的部分逐支「定位到第 i 支」再讀它的影片代碼 */
+    var deep = function () {
+      var idx = YM.ids.length, last = '', miss = 0, lst = YM.pass ? YT_LIST_S : YT_LIST;
+      var step = function () {
+        if (idx >= 1000 || miss >= 6) { ymTitles(); return; }
+        try { pl.cuePlaylist({ list: lst, listType: 'playlist', index: idx }); } catch (e) { ymTitles(); return; }
+        var tries = 0;
+        var poll = function () {
+          var vd = pl.getVideoData && pl.getVideoData(), id = vd && vd.video_id;
+          if (id && id !== last && !seen[id] && !(YM.pass && YM.tc[id])) { seen[id] = 1; YM.ids.push(id); last = id; miss = 0; idx++; ymSt(T('ymGot', YM.ids.length)); setTimeout(step, 150); }
+          else if (++tries < 12) setTimeout(poll, 250);
+          else { miss++; idx++; setTimeout(step, 100); }
+        };
+        setTimeout(poll, 400);
+      };
+      step();
     };
     YM.again = function () {
       seen = {}; rounds = 0;
