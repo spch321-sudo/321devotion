@@ -549,7 +549,7 @@ function ymStart() {
       else ymTitles();
     };
     YM.again = function () { seen = {}; rounds = 0; pl.cuePlaylist({ list: YT_LIST_S, listType: 'playlist', index: 0 }); setTimeout(grab, 3500); };
-    pl = new YT.Player('ymplayer', { height: '2', width: '2', playerVars: { listType: 'playlist', list: YT_LIST }, events: { onReady: function () { setTimeout(grab, 2500); }, onError: function () { ymSt(T('ymErr')); YM.busy = false; } } });
+    pl = new YT.Player('ymplayer', { height: '2', width: '2', playerVars: { listType: 'playlist', list: YT_LIST }, events: { onReady: function () { setTimeout(grab, 2500); }, onError: function (e) { ymSt(T('ymErr') + ' (錯誤碼 ' + (e && e.data) + '，' + (YM.pass ? '簡體' : '繁體') + '清單)'); YM.busy = false; } } });
   };
   if (window.YT && YT.Player) boot();
   else { window.onYouTubeIframeAPIReady = boot; var sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = function () { ymSt(T('ymErr')); YM.busy = false; }; document.body.appendChild(sc); }
